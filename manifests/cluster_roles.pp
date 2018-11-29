@@ -2,7 +2,6 @@
 
 class kubernetes::cluster_roles (
 
-  String $kubernetes_version  = $kubernetes::kubernetes_version,
   Optional[String] $controller_address = $kubernetes::controller_address,
   Optional[Boolean] $controller = $kubernetes::controller,
   Optional[Boolean] $worker = $kubernetes::worker,
@@ -19,16 +18,19 @@ class kubernetes::cluster_roles (
   String $token = $kubernetes::token,
   String $discovery_token_hash = $kubernetes::discovery_token_hash,
   String $container_runtime = $kubernetes::container_runtime,
+  Optional[Array] $ignore_preflight_errors = []
 
 ){
   $path = ['/usr/bin','/bin','/sbin','/usr/local/bin']
-  $env = ['HOME=/root', 'KUBECONFIG=/etc/kubernetes/admin.conf']
+  $env_controller = ['HOME=/root', 'KUBECONFIG=/etc/kubernetes/admin.conf']
+  #Worker nodes do not have admin.conf present
+  $env_worker = ['HOME=/root', 'KUBECONFIG=/etc/kubernetes/kubelet.conf']
 
   if $container_runtime == 'cri_containerd' {
-    $preflight_errors = ['Service-Docker']
+    $preflight_errors = flatten(['Service-Docker',$ignore_preflight_errors])
     $cri_socket = '/run/containerd/containerd.sock'
   } else {
-    $preflight_errors = undef
+    $preflight_errors = $ignore_preflight_errors
     $cri_socket = undef
   }
 
@@ -37,7 +39,7 @@ class kubernetes::cluster_roles (
     kubernetes::kubeadm_init { $node_label:
       config                  => '/etc/kubernetes/config.yaml',
       path                    => $path,
-      env                     => $env,
+      env                     => $env_controller,
       node_label              => $node_label,
       ignore_preflight_errors => $preflight_errors,
       }
@@ -46,7 +48,7 @@ class kubernetes::cluster_roles (
   if $worker {
     kubernetes::kubeadm_join { $node_label:
       path                    => $path,
-      env                     => $env,
+      env                     => $env_worker,
       controller_address      => $controller_address,
       token                   => $token,
       ca_cert_hash            => $discovery_token_hash,

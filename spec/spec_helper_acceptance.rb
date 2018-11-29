@@ -43,7 +43,11 @@ RSpec.configure do |c|
       on host, puppet('module', 'install', 'stahnma-epel'), { :acceptable_exit_codes => [0,1] }
       on host, puppet('module', 'install', 'puppetlabs-translate', '--version', '1.0.0' ), { :acceptable_exit_codes => [0,1] }
       on host, puppet('module', 'install', 'puppet-archive'), { :acceptable_exit_codes => [0,1] }
-      on host, puppet('module', 'install', 'maestrodev-wget'), { :acceptable_exit_codes => [0,1] }
+      on host, puppet('module', 'install', 'puppet-wget'), { :acceptable_exit_codes => [0,1] }
+      on host, puppet('module', 'install', 'herculesteam-augeasproviders_sysctl'), { :acceptable_exit_codes => [0,1] }
+      on host, puppet('module', 'install', 'herculesteam-augeasproviders_core'), { :acceptable_exit_codes => [0,1] }
+      on host, puppet('module', 'install', 'camptocamp-kmod'), { :acceptable_exit_codes => [0,1] }
+
 
       # shell('echo "#{vmhostname}" > /etc/hostname')
       # shell("hostname #{vmhostname}")
@@ -99,7 +103,7 @@ EOS
 :hierarchy:
   - "%{::hostname}"
   - "%{::osfamily}"
-:yaml:  
+:yaml:
   :datadir: /etc/puppetlabs/code/environments/production/hieradata
 EOS
 
@@ -137,15 +141,12 @@ EOS
         create_remote_file(host, "/tmp/nginx.yml", nginx)
         create_remote_file(host,"/etc/puppetlabs/puppet/hiera.yaml", hiera)
         on(host, 'cp /etc/puppetlabs/code/modules/kubernetes/tooling/*.yaml /etc/puppetlabs/code/environments/production/hieradata/', acceptable_exit_codes: [0]).stdout
-        
+
 
         if fact('osfamily') == 'Debian'
           on(host, 'sed -i /cni_network_provider/d /etc/puppetlabs/code/environments/production/hieradata/Debian.yaml', acceptable_exit_codes: [0]).stdout
           on(host, 'echo "kubernetes::cni_network_provider: https://cloud.weave.works/k8s/net?k8s-version=\$(kubectl version | base64 | tr -d \"\n\")\&env.IPALLOC_RANGE=100.32.0.0/12" >> /etc/puppetlabs/code/environments/production/hieradata/Debian.yaml', acceptable_exit_codes: [0]).stdout
         end
-
-        # Disable swap
-        on(host, 'swapoff -a')
     end
   end
 end

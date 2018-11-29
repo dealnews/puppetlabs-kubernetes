@@ -2,55 +2,68 @@
 
 class kubernetes::packages (
 
-  String $kubernetes_version                   = $kubernetes::kubernetes_version,
+  String $kubernetes_package_version           = $kubernetes::kubernetes_package_version,
   String $container_runtime                    = $kubernetes::container_runtime,
+  Boolean $manage_docker                       = $kubernetes::manage_docker,
+  Boolean $manage_etcd                         = $kubernetes::manage_etcd,
   Optional[String] $docker_version             = $kubernetes::docker_version,
-  String $etcd_version                         = $kubernetes::etcd_version,
-  Optional[String] $containerd_version         = $kubernetes::containerd_version,
+  Optional[String] $docker_package_name        = $kubernetes::docker_package_name,
   Boolean $controller                          = $kubernetes::controller,
+  Optional[String] $containerd_archive         = $kubernetes::containerd_archive,
+  Optional[String] $containerd_source          = $kubernetes::containerd_source,
+  String $etcd_archive                         = $kubernetes::etcd_archive,
+  String $etcd_source                          = $kubernetes::etcd_source,
+  Optional[String] $runc_source                = $kubernetes::runc_source,
+  Boolean $disable_swap                        = $kubernetes::disable_swap,
+  Boolean $manage_kernel_modules               = $kubernetes::manage_kernel_modules,
+  Boolean $manage_sysctl_settings              = $kubernetes::manage_sysctl_settings,
 
 ) {
 
   $kube_packages = ['kubelet', 'kubectl', 'kubeadm']
-  $containerd_archive = "containerd-${containerd_version}.linux-amd64.tar.gz"
-  $containerd_source = "https://github.com/containerd/containerd/releases/download/v${containerd_version}/${containerd_archive}"
-  $etcd_archive = "etcd-v${etcd_version}-linux-amd64.tar.gz"
-  $etcd_source = "https://github.com/coreos/etcd/releases/download/v${etcd_version}/${etcd_archive}"
 
-  if $::osfamily == 'RedHat' {
-    exec { 'set up bridge-nf-call-iptables':
-      path    => ['/usr/sbin/', '/usr/bin', '/bin'],
-      command => 'modprobe br_netfilter',
-      creates => '/proc/sys/net/bridge/bridge-nf-call-iptables',
-      before  => File_line['set 1 /proc/sys/net/bridge/bridge-nf-call-iptables'],
-    }
-
-    file_line { 'set 1 /proc/sys/net/bridge/bridge-nf-call-iptables':
-      path    => '/proc/sys/net/bridge/bridge-nf-call-iptables',
-      replace => true,
-      line    => '1',
-      match   => '0',
-      require => Exec['set up bridge-nf-call-iptables'],
+  if $disable_swap {
+    exec {'disable swap':
+      path    => ['/usr/sbin/', '/usr/bin', '/bin','/sbin'],
+      command => 'swapoff -a',
+      unless  => "awk '{ if (NR > 1) exit 1}' /proc/swaps",
     }
   }
 
+  if $manage_kernel_modules {
+    kmod::load { 'br_netfilter':
+      before => Sysctl['net.bridge.bridge-nf-call-iptables'],
+    }
+  }
 
-  if $container_runtime == 'docker' {
+  if $manage_sysctl_settings {
+    sysctl { 'net.bridge.bridge-nf-call-iptables':
+      ensure => present,
+      value  => '1',
+      before => Sysctl['net.ipv4.ip_forward'],
+    }
+    sysctl { 'net.ipv4.ip_forward':
+      ensure => present,
+      value  => '1',
+    }
+  }
+
+  if $container_runtime == 'docker' and $manage_docker == true {
     case $::osfamily {
       'Debian': {
-        package { 'docker-engine':
+        package { $docker_package_name:
           ensure => $docker_version,
         }
       }
       'RedHat': {
-        package { 'docker-engine':
+        package { $docker_package_name:
           ensure => $docker_version,
         }
         file_line { 'set systemd cgroup docker':
           path    => '/usr/lib/systemd/system/docker.service',
           line    => 'ExecStart=/usr/bin/dockerd --exec-opt native.cgroupdriver=systemd',
           match   => 'ExecStart',
-          require => Package['docker-engine'],
+          require => Package[$docker_package_name],
         }
       }
     default: { notify {"The OS family ${::osfamily} is not supported by this module":} }
@@ -60,7 +73,7 @@ class kubernetes::packages (
   elsif $container_runtime == 'cri_containerd' {
 
     wget::fetch { 'download runc binary':
-      source      => 'https://github.com/opencontainers/runc/releases/download/v1.0.0-rc5/runc.amd64',
+      source      => $runc_source,
       destination => '/usr/bin/runc',
       timeout     => 0,
       verbose     => false,
@@ -83,7 +96,7 @@ class kubernetes::packages (
     }
   }
 
-  if $controller {
+  if $controller and $manage_etcd {
     archive { $etcd_archive:
       path            => "/${etcd_archive}",
       source          => $etcd_source,
@@ -96,7 +109,7 @@ class kubernetes::packages (
   }
 
   package { $kube_packages:
-    ensure => $kubernetes_version,
+    ensure => $kubernetes_package_version,
   }
 
 }

@@ -3,6 +3,7 @@ describe 'kubernetes', :type => :class do
   let(:facts) do
     {
       :kernel           => 'Linux',
+      :lsbdistcodename  => 'xenial',
       :osfamily         => 'Debian',
       :operatingsystem  => 'Ubuntu',
       :os               => {
@@ -10,6 +11,7 @@ describe 'kubernetes', :type => :class do
         :release => {
           :full => '16.04',
         },
+       
       },
     }
   end
@@ -41,6 +43,8 @@ describe 'kubernetes', :type => :class do
         'controller_address' => '172.17.10.101:6443',
         'cloud_provider' => :undef,
         'token' => 'foo',
+        'create_repos' => true,
+        'disable_swap' => true,
         
       }
     end
@@ -74,6 +78,7 @@ describe 'kubernetes', :type => :class do
         'controller_address' => '172.17.10.101:6443',  
         'cloud_provider' => :undef,  
         'token' => 'foo',
+        'disable_swap' => true,
                          
       }
     end
@@ -113,6 +118,7 @@ describe 'kubernetes', :type => :class do
         'controller_address' => '172.17.10.101:6443',   
         'cloud_provider' => :undef,
         'token' => 'foo',
+        'disable_swap' => true,
                 
       }
     end

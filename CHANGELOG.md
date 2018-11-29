@@ -1,3 +1,20 @@
+# Version 3.1.0
+
+Adds support for Kubernetes 1.12.x
+
+A full list of PR's and issues closed can be found here [here](https://github.com/puppetlabs/puppetlabs-kubernetes/milestone/3?closed=1)
+
+https://github.com/puppetlabs/puppetlabs-kubernetes/milestone/3?closed=1
+# Version 3.0.1
+
+Fixes an incorrect default value for ignore_preflight_errors in the cluster_roles class
+
+# Version 3.0.0
+
+Exposes a significant number of new params to allow the use of internal repos in restricted or airgapped systems.
+
+A full list of PRs and issues closed can be found [here](https://github.com/puppetlabs/puppetlabs-kubernetes/milestone/2?closed=1)
+
 # Version 2.0.2
 
 Fixes issue with cgroup mismatch on docker PR #109

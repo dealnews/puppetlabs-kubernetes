@@ -4,6 +4,7 @@ describe 'kubernetes::cluster_roles', :type => :class do
         {
           :hostname         => 'foo',
           :kernel           => 'Linux',
+          :lsbdistcodename  => 'xenial',
           :osfamily         => 'Debian',
           :operatingsystem  => 'Ubuntu',
           :os               => {
@@ -19,7 +20,6 @@ describe 'kubernetes::cluster_roles', :type => :class do
     let(:params) do 
         { 
           'controller' => true, 
-          'kubernetes_version' => '1.10.2',
           'worker' => false,
           'etcd_ip' => 'foo',           
           'etcd_ca_key' => 'foo',
@@ -45,7 +45,6 @@ describe 'kubernetes::cluster_roles', :type => :class do
     let(:params) do 
         { 
           'controller' => false, 
-          'kubernetes_version' => '1.10.2',
           'worker' => true,
           'etcd_ip' => 'foo',           
           'etcd_ca_key' => 'foo',
@@ -60,8 +59,8 @@ describe 'kubernetes::cluster_roles', :type => :class do
           'etcd_initial_cluster' => 'foo',   
           'controller_address' => '172.17.10.101',  
           'node_label' => 'foo',   
-          'container_runtime' => 'docker',     
-                                                 
+          'container_runtime' => 'docker',  
+          # 'docker_package_name' => 'docker-engine',   
         } 
     end
 

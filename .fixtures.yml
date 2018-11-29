@@ -2,8 +2,11 @@ fixtures:
   forge_modules:
     stdlib: 'puppetlabs-stdlib'
     apt: 'puppetlabs-apt'
-    wget: 'maestrodev-wget'
+    wget: 'puppet-wget'
     archive: "puppet-archive"    
     translate: "puppetlabs-translate"
+    augeasproviders_sysctl: "herculesteam-augeasproviders_sysctl"
+    augeasproviders_core: "herculesteam-augeasproviders_core"
+    kmod: "camptocamp-kmod"
   symlinks:
     kubernetes: "#{source_dir}"

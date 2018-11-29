@@ -1,0 +1,85 @@
+apiVersion: kubeadm.k8s.io/v1alpha3
+apiEndpoint:
+  advertiseAddress: <%= @kube_api_advertise_address %>
+  bindPort: 6443
+bootstrapTokens:
+  - token: "<%= @token %>"
+    description: "kubeadm bootstrap token"
+    ttl: "24h"
+    usages:
+    - signing
+    - authentication
+    groups:
+    - system:bootstrappers:kubeadm:default-node-token
+kind: InitConfiguration
+nodeRegistration:
+  name: <%= @node_label %>
+  <%- if @container_runtime == "cri_containerd" -%>
+  criSocket: /run/containerd/containerd.sock
+  <%- end -%>
+  <%- if @cloud_provider  -%>
+  cloudProvider: <%= @cloud_provider %>
+  cloudConfig: <%= @cloud_config %>
+  <%- end -%>
+  <%- if @kubelet_extra_arguments -%>
+  kubeletExtraArgs:
+    <%- @kubelet_extra_arguments.each do |arg| -%>
+    <%= arg %>
+    <%- end -%>
+  <%- end -%>
+---
+apiVersion: kubeadm.k8s.io/v1alpha3
+CertificatesDir: /etc/kubernetes/pki
+etcd:
+    external:
+        endpoints:
+    <% @etcd_peers.each do |peer| -%>
+    - https://<%= peer %>:2379
+    <% end -%>
+
+        caFile: /etc/kubernetes/pki/etcd/ca.crt
+        certFile: /etc/kubernetes/pki/etcd/client.crt
+        keyFile: /etc/kubernetes/pki/etcd/client.key
+imageRepository: <%= @image_repository %>
+nodeName: <%= @node_label %>
+kind: ClusterConfiguration
+kubernetesVersion: v<%= @kubernetes_version %>
+networking:
+  podSubnet: <%= @cni_pod_cidr %>
+<%- if @apiserver_extra_arguments -%>
+apiServerExtraArgs:
+  <%- @apiserver_extra_arguments.each do |arg| -%>
+  <%= arg %>
+  <%- end -%>
+<%- end -%>
+<%- if @cloud_provider  -%>
+cloudProvider: <%= @cloud_provider %>
+<%- end -%>
+apiServerCertSANs:
+<% @apiserver_cert_extra_sans.each do |san| -%>
+- <%= san %>
+<% end -%>
+<%- if @kubeadm_extra_config  -%>
+<%= @kubeadm_extra_config_yaml %>
+<%- end -%>
+---
+apiVersion: kubeadm.k8s.io/v1alpha3
+kind: JoinConfiguration
+nodeRegistration:
+  name: <%= @node_name %>
+  <%- if @container_runtime == "cri_containerd" -%>
+  criSocket: /run/containerd/containerd.sock
+  <%- end -%>
+  <%- if @kubelet_extra_arguments -%>
+  kubeletExtraArgs:
+    <%- @kubelet_extra_arguments.each do |arg| -%>
+    <%= arg %>
+    <%- end -%>
+  <%- end -%>
+token: <%= @token %>
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+<%- if @kubelet_extra_config  -%>
+<%= @kubelet_extra_config_yaml %>
+<%- end -%>

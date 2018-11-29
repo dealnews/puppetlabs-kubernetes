@@ -1,6 +1,7 @@
 #Calss kubernetes config, populates config files with params to bootstrap cluster
 class kubernetes::config (
 
+  Boolean $manage_etcd = $kubernetes::manage_etcd,
   String $kubernetes_version  = $kubernetes::kubernetes_version,
   String $etcd_ca_key = $kubernetes::etcd_ca_key,
   String $etcd_ca_crt = $kubernetes::etcd_ca_crt,
@@ -26,10 +27,14 @@ class kubernetes::config (
   String $sa_key = $kubernetes::sa_key,
   Optional[Array] $apiserver_cert_extra_sans = $kubernetes::apiserver_cert_extra_sans,
   Optional[Array] $apiserver_extra_arguments = $kubernetes::apiserver_extra_arguments,
+  Optional[Array] $kubelet_extra_arguments = $kubernetes::kubelet_extra_arguments,
   String $service_cidr = $kubernetes::service_cidr,
   String $node_label = $kubernetes::node_label,
   Optional[String] $cloud_provider = $kubernetes::cloud_provider,
-
+  Optional[String] $cloud_config = $kubernetes::cloud_config,
+  Optional[Hash] $kubeadm_extra_config = $kubernetes::kubeadm_extra_config,
+  Optional[Hash] $kubelet_extra_config = $kubernetes::kubelet_extra_config,
+  String $image_repository = $kubernetes::image_repository,
 ) {
 
   $kube_dirs = ['/etc/kubernetes','/etc/kubernetes/manifests','/etc/kubernetes/pki','/etc/kubernetes/pki/etcd']
@@ -42,11 +47,17 @@ class kubernetes::config (
     }
   }
 
-  $etcd.each | String $etcd_files | {
-    file { "/etc/kubernetes/pki/etcd/${etcd_files}":
+  if $manage_etcd {
+    $etcd.each | String $etcd_files | {
+      file { "/etc/kubernetes/pki/etcd/${etcd_files}":
+        ensure  => present,
+        mode    => '0644',
+        content => template("kubernetes/etcd/${etcd_files}.erb"),
+      }
+    }
+    file { '/etc/systemd/system/etcd.service':
       ensure  => present,
-      mode    => '0644',
-      content => template("kubernetes/etcd/${etcd_files}.erb"),
+      content => template('kubernetes/etcd/etcd.service.erb'),
     }
   }
 
@@ -58,14 +69,27 @@ class kubernetes::config (
     }
   }
 
-  file { '/etc/systemd/system/etcd.service':
-    ensure  => present,
-    content => template('kubernetes/etcd/etcd.service.erb'),
+  # The alpha1 schema puts Kubelet configuration in a different place.
+  $kubelet_extra_config_alpha1 = {
+    'kubeletConfiguration' => {
+      'baseConfig' => $kubelet_extra_config,
+    },
+  }
+
+  # to_yaml emits a complete YAML document, so we must remove the leading '---'
+  $kubeadm_extra_config_yaml = regsubst(to_yaml($kubeadm_extra_config), '^---\n', '')
+  $kubelet_extra_config_yaml = regsubst(to_yaml($kubelet_extra_config), '^---\n', '')
+  $kubelet_extra_config_alpha1_yaml = regsubst(to_yaml($kubelet_extra_config_alpha1), '^---\n', '')
+
+  if $kubernetes_version =~ /1.1(0|1)/ {
+    $template = 'alpha1'
+  } else {
+    $template = 'alpha3'
   }
 
   file { '/etc/kubernetes/config.yaml':
     ensure  => present,
-    content => template('kubernetes/config.yaml.erb'),
+    content => template("kubernetes/config-${template}.yaml.erb"),
   }
 
 }
